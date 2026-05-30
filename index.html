@@ -151,6 +151,10 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:r
 .badge-debit{background:#FFF5E8;color:#8A4A00}
 .badge-credit{background:#FEE8F8;color:#8A0070}
 
+.ledger-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.ledger-delete{padding:8px 10px;border:1px solid rgba(220,57,42,0.18);border-radius:12px;background:#fff;color:var(--danger);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.ledger-delete:hover{background:rgba(220,57,42,0.08)}
+
 .empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
 .empty-icon{font-size:40px;margin-bottom:12px;opacity:0.35}
 .empty-text{font-size:14px}
@@ -206,11 +210,11 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:r
     <div class="login-sub">Sign in to access your invoice dashboard</div>
     <div class="field">
       <label>User ID</label>
-      <input type="text" id="login-id" placeholder="Mridula">
+      <input type="text" id="login-id" placeholder="Enter your user ID">
     </div>
     <div class="field">
       <label>Password</label>
-      <input type="password" id="login-pass" placeholder="123456">
+      <input type="password" id="login-pass" placeholder="Enter your password">
     </div>
     <button class="btn-primary" onclick="attemptLogin()">Login</button>
     <div class="login-error" id="login-error"></div>
@@ -442,7 +446,8 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:r
     query,
     orderBy,
     limit,
-    setDoc
+    setDoc,
+    deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -489,6 +494,17 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:r
       return true;
     } catch (e) {
       console.warn('Failed to save invoice to backend:', e);
+      return false;
+    }
+  };
+
+  window.deleteInvoiceFromBackend = async function(invoiceId) {
+    if (!window.firebaseEnabled) return false;
+    try {
+      await deleteDoc(doc(window.firestoreDb, 'invoices', invoiceId));
+      return true;
+    } catch (e) {
+      console.warn('Failed to delete invoice from backend:', e);
       return false;
     }
   };
@@ -1052,10 +1068,22 @@ function renderLedger() {
           · ${inv.products.length} item${inv.products.length === 1 ? '' : 's'}
         </div>
       </div>
-      <div>
+      <div class="ledger-actions">
         <div class="le-amount">₹${inv.total.toFixed(2)}</div>
+        <button class="ledger-delete" onclick="deleteInvoice('${inv.id}')">Delete</button>
       </div>
     </div>`).join('');
+}
+
+function deleteInvoice(invoiceId) {
+  if (!confirm('Delete this invoice from the sales ledger?')) return;
+  invoices = invoices.filter(inv => inv.id !== invoiceId);
+  save();
+  renderLedger();
+  if (window.firebaseEnabled && typeof window.deleteInvoiceFromBackend === 'function') {
+    window.deleteInvoiceFromBackend(invoiceId).catch(() => {});
+  }
+  showToast('Invoice removed from ledger.', 'success');
 }
 </script>
 </body>
