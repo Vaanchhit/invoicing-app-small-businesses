@@ -434,6 +434,11 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:r
 
 <div class="toast" id="toast"></div>
 
+<script>
+window.firebaseReady = new Promise(resolve => {
+  window._resolveFirebaseReady = resolve;
+});
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -509,6 +514,11 @@ body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:r
       return false;
     }
   };
+
+  if (window._resolveFirebaseReady) {
+    window._resolveFirebaseReady();
+    window._resolveFirebaseReady = null;
+  }
 </script>
 <script>
 // ── State ──
@@ -520,6 +530,14 @@ let ledgerPeriod = 'all';
 let productIdCounter = 0;
 let currentPreviewData = null;
 window.firebaseEnabled = window.firebaseEnabled || false;
+
+async function waitForFirebaseReady() {
+  if (!window.firebaseReady) return;
+  await Promise.race([
+    window.firebaseReady.catch(() => {}),
+    new Promise(resolve => setTimeout(resolve, 2000))
+  ]);
+}
 
 function isAuthenticated() {
   return localStorage.getItem('madhav_auth') === 'true';
@@ -542,7 +560,8 @@ async function attemptLogin() {
   if (id === 'mridula' && pass === '123456') {
     setAuthenticated(true);
     showLoginOverlay(false);
-    if (window.firebaseEnabled) {
+    await waitForFirebaseReady();
+    if (window.firebaseEnabled && typeof window.syncInvoicesFromBackend === 'function') {
       await syncInvoicesFromBackend();
     }
     return;
@@ -584,6 +603,7 @@ async function init() {
   addProduct();
   const auth = isAuthenticated();
   showLoginOverlay(!auth);
+  await waitForFirebaseReady();
   if (auth && window.firebaseEnabled) {
     await syncInvoicesFromBackend();
     if (document.getElementById('page-ledger').classList.contains('active')) renderLedger();
